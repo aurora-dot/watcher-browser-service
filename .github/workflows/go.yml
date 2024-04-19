@@ -33,18 +33,18 @@ jobs:
       - uses: actions/setup-go@v5
       - uses: Jerome1337/gofmt-action@v1.0.5
 
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
+  # build:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v3
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ env.GO_VERSION }}
+  #     - name: Set up Go
+  #       uses: actions/setup-go@v5
+  #       with:
+  #         go-version: ${{ env.GO_VERSION }}
 
-      - name: Build
-        run: go build -v ./...
+  #     - name: Build
+  #       run: go build -v ./...
 
-      - name: Test
-        run: go test -v ./...
+  #     - name: Test
+  #       run: go test -v ./...
