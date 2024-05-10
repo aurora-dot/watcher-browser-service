@@ -1,4 +1,6 @@
-FROM golang:1.22 AS builder
+FROM public.ecr.aws/lambda/go:1
+
+RUN yum install go -y
 
 WORKDIR /src
 
@@ -7,8 +9,6 @@ COPY go.mod go.mod
 COPY go.sum go.sum
 
 RUN GOARCH=amd64 GOOS=linux go build -ldflags="-s -w" -o app main.go
-
-FROM public.ecr.aws/lambda/go:1
 
 RUN yum install curl unzip
 
@@ -24,6 +24,6 @@ RUN yum install xz atk at-spi2-atk cups-libs gtk3 libXcomposite alsa-lib tar \
     xorg-x11-xauth dbus-glib dbus-glib-devel unzip bzip2 -y -q
 
 # Copy over go source code
-COPY --from=builder /src/app /var/task/
+RUN cp /src/app /var/task/app
 
 CMD [ "app" ]
