@@ -20,6 +20,9 @@ service: watcher-browser-service
 # Check out our docs for more details
 frameworkVersion: "3"
 
+plugins:
+  - serverless-offline
+
 provider:
   name: aws
   runtime: go1.x
