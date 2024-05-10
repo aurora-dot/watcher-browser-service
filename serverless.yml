@@ -71,6 +71,13 @@ functions:
       - httpApi:
           path: /world
           method: get
+  scrape:
+    timeout: 30
+    handler: bin/scraper
+    events:
+      - httpApi:
+          path: /scrape
+          method: post
 #    The following are a few example events you can configure
 #    NOTE: Please make sure to change your handler code to work with those events
 #    Check the event documentation for details
