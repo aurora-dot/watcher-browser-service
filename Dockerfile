@@ -1,6 +1,9 @@
-FROM public.ecr.aws/lambda/go:1
+FROM browserless/chrome
 
-RUN yum install go -y
+USER root
+
+RUN apt update -y && apt upgrade -y
+RUN apt install golang-go -y
 
 WORKDIR /src
 
@@ -10,20 +13,22 @@ COPY go.sum go.sum
 
 RUN GOARCH=amd64 GOOS=linux go build -ldflags="-s -w" -o app main.go
 
-RUN yum install curl unzip
 
-RUN mkdir -p "/opt/chrome/"
-RUN curl -Lo "/opt/chrome/chrome-linux.zip" "https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Linux_x64%2F1299153%2Fchrome-linux.zip?generation=1715336417866122&alt=media"
-RUN unzip -q "/opt/chrome/chrome-linux.zip" -d "/opt/chrome/"
-RUN mv /opt/chrome/chrome-linux/* /opt/chrome/
-RUN rm -rf /opt/chrome/chrome-linux "/opt/chrome/chrome-linux.zip"
+RUN mkdir -p ~/.aws-lambda-rie && \
+    curl -Lo ~/.aws-lambda-rie/aws-lambda-rie https://github.com/aws/aws-lambda-runtime-interface-emulator/releases/latest/download/aws-lambda-rie && \
+    chmod +x ~/.aws-lambda-rie/aws-lambda-rie
+# RUN yum install docker
 
-RUN yum install xz atk at-spi2-atk cups-libs gtk3 libXcomposite alsa-lib tar \
-    libXcursor libXdamage libXext libXi libXrandr libXScrnSaver \
-    libXtst pango at-spi2-atk libXt xorg-x11-server-Xvfb \
-    xorg-x11-xauth dbus-glib dbus-glib-devel unzip bzip2 -y -q
+# # Install ATK from CentOS 7
+# RUN rpm -ivh --nodeps http://mirror.centos.org/centos/7/os/x86_64/Packages/atk-2.28.1-2.el7.x86_64.rpm
+# RUN rpm -ivh --nodeps http://mirror.centos.org/centos/7/os/x86_64/Packages/at-spi2-atk-2.26.2-1.el7.x86_64.rpm
+# RUN rpm -ivh --nodeps http://mirror.centos.org/centos/7/os/x86_64/Packages/at-spi2-core-2.28.0-1.el7.x86_64.rpm
+# RUN rpm -ivh --nodeps  http://mirror.centos.org/centos/7/os/x86_64/Packages/mesa-libgbm-18.3.4-10.el7.x86_64.rpm
+# RUN rpm -ivh --nodeps   http://mirror.centos.org/centos/7/os/x86_64/Packages/libwayland-server-1.15.0-1.el7.x86_64.rpm
+# RUN rpm -ivh --nodeps  http://mirror.centos.org/centos/7/os/x86_64/Packages/glibc-2.17-317.el7.x86_64.rpm
 
-# Copy over go source code
-RUN cp /src/app /var/task/app
+# yum install pango-devel.x86_64 pango.x86_64
+# yum install libXrandr.x86_64 libXrandr-devel.x86_64
 
-CMD [ "app" ]
+
+ENTRYPOINT [ "/src/app" ] 

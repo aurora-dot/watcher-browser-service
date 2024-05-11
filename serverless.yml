@@ -20,68 +20,20 @@ service: watcher-browser-service
 # Check out our docs for more details
 frameworkVersion: "3"
 
-plugins:
-  - serverless-offline
-
 provider:
   name: aws
-  runtime: go1.x
+  region: eu-west-2
 
-# you can overwrite defaults here
-#  stage: dev
-#  region: us-east-1
-
-# you can add statements to the Lambda function's IAM Role here
-#  iam:
-#    role:
-#      statements:
-#        - Effect: "Allow"
-#          Action:
-#            - "s3:ListBucket"
-#          Resource: { "Fn::Join" : ["", ["arn:aws:s3:::", { "Ref" : "ServerlessDeploymentBucket" } ] ]  }
-#        - Effect: "Allow"
-#          Action:
-#            - "s3:PutObject"
-#          Resource:
-#            Fn::Join:
-#              - ""
-#              - - "arn:aws:s3:::"
-#                - "Ref" : "ServerlessDeploymentBucket"
-#                - "/*"
-
-# you can define service wide environment variables here
-#  environment:
-#    variable1: value1
-
-package:
-  patterns:
-    - "!./**"
-    - ./bin/**
+  ecr:
+    images:
+      watcher:
+        path: ./
 
 functions:
-  hello:
-    handler: bin/hello
-    events:
-      - httpApi:
-          path: /hello
-          method: get
-  world:
-    handler: bin/world
-    events:
-      - httpApi:
-          path: /world
-          method: get
-  scrapeLocal:
-    timeout: 30
-    handler: bin/scraper
-    events:
-      - httpApi:
-          path: /scrape
-          method: post
   scrape:
     timeout: 30
     memorySize: 2048
-    image: auroradot/watcher-browser-service:latest
+    image: watcher
     events:
       - httpApi:
           path: /scrape
