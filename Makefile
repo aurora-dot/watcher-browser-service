@@ -1,24 +1,31 @@
-.PHONY: install build debugBuild clean deploy
+.PHONY: clean install build buildDocker runDebug runDebugDocker getDebugTools deploy
+
+clean:
+	rm -rf ./node_modules
 
 install:
 	npm i
 
-build:
-	env GOARCH=amd64 GOOS=linux go build -ldflags="-s -w" -o bin/hello hello/main.go
-	env GOARCH=amd64 GOOS=linux go build -ldflags="-s -w" -o bin/world world/main.go
-	env GOARCH=amd64 GOOS=linux go build -ldflags="-s -w" -o bin/scraper scraper/main.go
+getDebugTools:
+	wget https://github.com/aws/aws-lambda-runtime-interface-emulator/releases/latest/download/aws-lambda-rie
+	mkdir -p .aws-lambda-rie 
+	mv aws-lambda-rie .aws-lambda-rie/aws-lambda-rie
+	chmod +x .aws-lambda-rie/aws-lambda-rie
 
-debugBuild:
-	env GOARCH=amd64 GOOS=linux go build -v -gcflags='all=-N -l' -ldflags="-s -w" -o bin/hello hello/main.go
-	env GOARCH=amd64 GOOS=linux go build -v -gcflags='all=-N -l' -ldflags="-s -w" -o bin/world world/main.go
+build:
+	GOARCH=amd64 GOOS=linux go build -ldflags="-s -w" -o bin/scraper scraper/main.go
+
+debug:
 	env GOARCH=amd64 GOOS=linux go build -v -gcflags='all=-N -l' -ldflags="-s -w" -o bin/scraper scraper/main.go
 
-debugDeploy: clean install debugBuild
-	env SLS_DEBUG=* npx sls offline --useDocker
+runDebug: debug
+	~/.aws-lambda-rie/aws-lambda-rie ./bin/scraper
 
-clean:
-	rm -rf ./node_modules
-	rm -rf ./bin
+buildDocker:
+	docker build -t watcher-local-build .
 
-deploy: clean install build
+runDebugDocker: buildDocker
+	docker run --platform linux/amd64 -v ./.aws-lambda-rie:/aws-lambda -p 9000:8080 --entrypoint /aws-lambda/aws-lambda-rie watcher-local-build /src/app
+
+deploy: install
 	npx sls deploy --verbose
