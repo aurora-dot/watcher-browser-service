@@ -19,7 +19,7 @@ type MyResponse struct {
 }
 
 func scrape(ctx context.Context, event *MyEvent) (*MyResponse, error) {
-	u := launcher.New().Bin("/opt/chrome/chrome").MustLaunch()
+	u := launcher.New().Bin("/src/chrome/chrome").MustLaunch()
 	page := rod.New().ControlURL(u).MustConnect().MustPage("https://www.wikipedia.org/")
 	page.MustWaitStable().MustScreenshot("a.png")
 
