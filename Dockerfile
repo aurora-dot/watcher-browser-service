@@ -9,8 +9,7 @@ ENV TZ=$TZ
 ENV DEBIAN_FRONTEND=$DEBIAN_FRONTEND
 ENV LANG="C.UTF-8"
 ENV DEBUG_COLORS=true
-
-RUN apt update -y && apt upgrade -y
+ENV AWS_LAMBDA_RUNTIME_API=true
 
 RUN apt-get update && apt-get install -y \
     ca-certificates \
@@ -61,11 +60,5 @@ RUN mkdir -p "/opt/chrome/" \
     && unzip -q "/opt/chrome/chrome-linux.zip" -d "/opt/chrome/" && mv /opt/chrome/chrome-linux/* /opt/chrome/ \
     && rm -rf /opt/chrome/chrome-linux "/opt/chrome/chrome-linux.zip"
 
-RUN curl -Lo aws-lambda-rie https://github.com/aws/aws-lambda-runtime-interface-emulator/releases/latest/download/aws-lambda-rie \
-    && chmod +x aws-lambda-rie && mv aws-lambda-rie /usr/local/bin/
-
-COPY ./entry_script.sh /entry_script.sh
-RUN chmod +x /entry_script.sh
-
-ENTRYPOINT [ "/entry_script.sh","lambda_function.handler" ]
+ENTRYPOINT [ "src/app" ]
 
