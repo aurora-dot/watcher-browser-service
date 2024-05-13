@@ -2,10 +2,13 @@ package main
 
 import (
 	"context"
+	"log"
+	"os"
 
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/launcher"
+	"github.com/joho/godotenv"
 )
 
 type MyEvent struct {
@@ -19,7 +22,8 @@ type MyResponse struct {
 }
 
 func scrape(ctx context.Context, event *MyEvent) (*MyResponse, error) {
-	u := launcher.New().Bin("/src/chrome/chrome").MustLaunch()
+	CHROME_PATH := os.Getenv("CHROME_PATH")
+	u := launcher.New().Bin(CHROME_PATH).MustLaunch()
 	page := rod.New().ControlURL(u).MustConnect().MustPage("https://www.wikipedia.org/")
 	page.MustWaitStable().MustScreenshot("a.png")
 
@@ -27,5 +31,10 @@ func scrape(ctx context.Context, event *MyEvent) (*MyResponse, error) {
 }
 
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+
 	lambda.Start(scrape)
 }
