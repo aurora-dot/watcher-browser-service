@@ -5,6 +5,7 @@ import (
 
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/go-rod/rod"
+	"github.com/go-rod/rod/lib/launcher"
 )
 
 type MyEvent struct {
@@ -18,8 +19,8 @@ type MyResponse struct {
 }
 
 func scrape(ctx context.Context, event *MyEvent) (*MyResponse, error) {
-	// u := launcher.New().Bin("/opt/chrome/chrome").MustLaunch()
-	page := rod.New().MustConnect().MustPage("https://www.wikipedia.org/")
+	u := launcher.New().Bin("/opt/chrome/chrome").MustLaunch()
+	page := rod.New().ControlURL(u).MustConnect().MustPage("https://www.wikipedia.org/")
 	page.MustWaitStable().MustScreenshot("a.png")
 
 	return &MyResponse{Content: "Test", Hash: "Test"}, nil
