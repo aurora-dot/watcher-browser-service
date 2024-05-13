@@ -9,6 +9,7 @@ ENV TZ=$TZ
 ENV DEBIAN_FRONTEND=$DEBIAN_FRONTEND
 ENV LANG="C.UTF-8"
 ENV DEBUG_COLORS=true
+ENV CHROME_PATH=/src/chrome/chrome
 
 RUN apt-get update && apt-get install -y \
     ca-certificates \
@@ -57,5 +58,7 @@ RUN mkdir -p "/src/chrome/" \
     && curl -Lo "/src/chrome/chrome-linux.zip" "https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Linux_x64%2F1299153%2Fchrome-linux.zip?generation=1715336417866122&alt=media" \
     && unzip -q "/src/chrome/chrome-linux.zip" -d "/src/chrome/" && mv /src/chrome/chrome-linux/* /src/chrome/ \
     && rm -rf /src/chrome/chrome-linux "/src/chrome/chrome-linux.zip"
+
+RUN echo CHROME_PATH=${CHROME_PATH} > .env
 
 ENTRYPOINT [ "src/app" ]
