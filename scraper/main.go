@@ -21,7 +21,7 @@ type MyEvent struct {
 type MyResponse struct {
 	Content string `json:"content"`
 	Hash    string `json:"hash"`
-	Image   string `json:image`
+	Image   string `json:"image"`
 }
 
 func scrape(ctx context.Context, event *MyEvent) (*MyResponse, error) {
