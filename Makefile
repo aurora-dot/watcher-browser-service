@@ -25,7 +25,7 @@ buildDocker:
 	docker build -t watcher-local-build .
 
 runDebugDocker: buildDocker
-	docker run --platform linux/amd64 -v ./.aws-lambda-rie:/aws-lambda -p 9000:8080 --entrypoint /aws-lambda/aws-lambda-rie watcher-local-build /src/app
+	docker run --platform linux/amd64 -v ./.aws-lambda-rie:/aws-lambda -p 9000:8080 --entrypoint /aws-lambda/aws-lambda-rie watcher-local-build /task/app
 
 deploy: install
 	npx sls deploy --verbose
