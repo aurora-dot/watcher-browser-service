@@ -48,16 +48,18 @@ USER worker
 
 WORKDIR /task
 
-COPY scraper/main.go go.mod go.sum ./
-
-RUN GOARCH=amd64 GOOS=linux go build -ldflags="-s -w" -o app main.go && \
-    rm main.go go.mod go.sum
-
+# Get chrome
 RUN mkdir -p "/task/chrome/" \
     && curl -Lo "/task/chrome/chrome-linux.zip" "https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Linux_x64%2F${CHROME_VERSION}%2Fchrome-linux.zip?alt=media" \
     && unzip -q "/task/chrome/chrome-linux.zip" -d "/task/chrome/" && mv /task/chrome/chrome-linux/* /task/chrome/ \
     && rm -rf /task/chrome/chrome-linux "/task/chrome/chrome-linux.zip"
 
 RUN echo CHROME_PATH=${CHROME_PATH} > .env
+
+# Copy source and build scraper
+COPY scraper/main.go go.mod go.sum ./
+
+RUN GOARCH=amd64 GOOS=linux go build -ldflags="-s -w" -o app main.go && \
+    rm main.go go.mod go.sum
 
 ENTRYPOINT [ "task/app" ]
