@@ -24,7 +24,7 @@ type MyResponse struct {
 func scrape(ctx context.Context, event *MyEvent) (*MyResponse, error) {
 	CHROME_PATH := os.Getenv("CHROME_PATH")
 	u := launcher.New().Bin(CHROME_PATH).MustLaunch()
-	page := rod.New().ControlURL(u).MustConnect().MustPage("https://www.wikipedia.org/")
+	page := rod.New().ControlURL(u).MustConnect().MustPage(event.URL)
 	page.MustWaitStable().MustScreenshot("a.png")
 
 	return &MyResponse{Content: "Test", Hash: "Test"}, nil
