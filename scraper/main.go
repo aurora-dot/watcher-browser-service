@@ -33,6 +33,8 @@ type MyResponse struct {
 }
 
 func getStock(page *rod.Page, inStockString string, outOfStockString string) (*bool, error) {
+	// check using HasR before getting to stop the infinate loop hopefully
+
 	fmt.Println("Started getStock")
 
 	// We use /%s/i to make the search, case insensitive
@@ -62,6 +64,8 @@ func getStock(page *rod.Page, inStockString string, outOfStockString string) (*b
 }
 
 func getPrice(page *rod.Page, priceXpath string) (string, error) {
+	// check using HasX before getting to stop the infinate loop hopefully
+
 	element, err := page.ElementX(priceXpath)
 
 	if err != nil {
@@ -80,6 +84,8 @@ func getPrice(page *rod.Page, priceXpath string) (string, error) {
 }
 
 func getImageAsBase64(page *rod.Page, imageXpath string) (string, error) {
+	// check using HasX before getting to stop the infinate loop hopefully
+
 	element, err := page.ElementX(imageXpath)
 
 	if err != nil {
