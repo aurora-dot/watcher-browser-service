@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 
 	"github.com/aws/aws-lambda-go/lambda"
@@ -32,20 +33,20 @@ type MyResponse struct {
 
 func getStock(page *rod.Page, inStockString string, outOfStockString string) (*bool, error) {
 	// We use /%s/i to make the search, case insensitive
-	inStockElement := page.MustElementR("button", fmt.Sprintf("/%s/i", inStockString))
-	outOfStockElement := page.MustElementR("button", fmt.Sprintf("/%s/i", outOfStockString))
+	inStockElement, inStockErr := page.ElementR("button", fmt.Sprintf("/%s/i", inStockString))
+	outOfStockElement, outOfStockErr := page.ElementR("button", fmt.Sprintf("/%s/i", outOfStockString))
 
 	stockStatus := new(bool)
 
-	if inStockElement != nil && outOfStockElement != nil {
+	if inStockErr != nil && outOfStockErr != nil {
 		return stockStatus, errors.New("stock: both in and out of stock")
-	} else if inStockElement == nil && outOfStockElement == nil {
+	} else if inStockErr == nil && outOfStockErr == nil {
 		return stockStatus, errors.New("stock: neither in and out of stock")
 	}
 
-	if inStockElement != nil {
+	if inStockElement != nil && inStockErr == nil {
 		*stockStatus = true
-	} else if outOfStockElement != nil {
+	} else if outOfStockElement != nil && outOfStockErr == nil {
 		*stockStatus = false
 	} else {
 		return stockStatus, errors.New("stock: uncaught error")
@@ -54,10 +55,29 @@ func getStock(page *rod.Page, inStockString string, outOfStockString string) (*b
 	return stockStatus, nil
 }
 
-func getImageUrl(page *rod.Page, imageXpath string) (string, error) {
-	element := page.MustElementX(imageXpath)
+func getPrice(page *rod.Page, priceXpath string) (string, error) {
+	element, err := page.ElementX(priceXpath)
 
-	if element == nil {
+	if err != nil {
+		log.Fatal(err)
+		return "", errors.New("price: no such element")
+	}
+
+	text := element.MustText()
+
+	if text == "" {
+		return "", errors.New("price: no text content for element")
+	}
+
+	return text, nil
+
+}
+
+func getImageAsBase64(page *rod.Page, imageXpath string) (string, error) {
+	element, err := page.ElementX(imageXpath)
+
+	if err != nil {
+		log.Fatal(err)
 		return "", errors.New("image: no such element")
 	}
 
@@ -67,7 +87,7 @@ func getImageUrl(page *rod.Page, imageXpath string) (string, error) {
 		return "", errors.New("image: couldn't get image resource")
 	}
 
-	return "data:image/png;base64," + base64.StdEncoding.EncodeToString(image), nil
+	return fmt.Sprintf("data:image/%s;base64,%s", http.DetectContentType(image), base64.StdEncoding.EncodeToString(image)), nil
 }
 
 func scrape(ctx context.Context, event *MyEvent) (*MyResponse, error) {
@@ -83,20 +103,30 @@ func scrape(ctx context.Context, event *MyEvent) (*MyResponse, error) {
 		return &MyResponse{}, err
 	}
 
-	imageUrl, err := getImageUrl(page, event.ImageXpath)
+	price, err := getPrice(page, event.PriceXpath)
 
 	if err != nil {
 		log.Fatal(err)
 		return &MyResponse{}, err
 	}
 
-	return &MyResponse{HTML: "Test", Price: "Test", Image: imageUrl, InStock: *stockStatus}, nil
+	imageAsBase64, err := getImageAsBase64(page, event.ImageXpath)
+
+	if err != nil {
+		log.Fatal(err)
+		return &MyResponse{}, err
+	}
+
+	fmt.Println("Image: " + imageAsBase64)
+
+	return &MyResponse{HTML: page.MustHTML(), Price: price, Image: imageAsBase64, InStock: *stockStatus}, nil
 }
 
 func main() {
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
+		return
 	}
 
 	lambda.Start(scrape)
