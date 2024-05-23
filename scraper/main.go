@@ -12,6 +12,7 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/launcher"
+	"github.com/go-rod/stealth"
 	"github.com/joho/godotenv"
 )
 
@@ -20,7 +21,7 @@ type MyEvent struct {
 	PriceXpath       string `json:"price_xpath"`
 	ImageXpath       string `json:"image_xpath"`
 	InStockString    string `json:"in_stock_string"`
-	OutOfStockString string `json:"out_stock_string"`
+	OutOfStockString string `json:"out_of_stock_string"`
 }
 
 type MyResponse struct {
@@ -32,9 +33,14 @@ type MyResponse struct {
 }
 
 func getStock(page *rod.Page, inStockString string, outOfStockString string) (*bool, error) {
+	fmt.Println("Started getStock")
+
 	// We use /%s/i to make the search, case insensitive
 	inStockElement, inStockErr := page.ElementR("button", fmt.Sprintf("/%s/i", inStockString))
+	fmt.Println("Got inStockElement")
+
 	outOfStockElement, outOfStockErr := page.ElementR("button", fmt.Sprintf("/%s/i", outOfStockString))
+	fmt.Println("Got outOfStockElement")
 
 	stockStatus := new(bool)
 
@@ -91,10 +97,20 @@ func getImageAsBase64(page *rod.Page, imageXpath string) (string, error) {
 }
 
 func scrape(ctx context.Context, event *MyEvent) (*MyResponse, error) {
+
+	if event.ImageXpath == "" || event.PriceXpath == "" || event.Url == "" || event.InStockString == "" || event.OutOfStockString == "" {
+		return &MyResponse{}, errors.New("request: doesn't have all json attributes")
+	}
+
+	fmt.Println("Started")
+
 	CHROME_PATH := os.Getenv("CHROME_PATH")
 	u := launcher.New().Bin(CHROME_PATH).MustLaunch()
-	page := rod.New().ControlURL(u).MustConnect().MustPage(event.Url)
-	page.MustWaitStable()
+	browser := rod.New().ControlURL(u).MustConnect()
+	page := stealth.MustPage(browser)
+	page.MustNavigate(event.Url).MustWaitStable()
+
+	fmt.Println("Got page")
 
 	stockStatus, err := getStock(page, event.InStockString, event.OutOfStockString)
 
@@ -103,12 +119,16 @@ func scrape(ctx context.Context, event *MyEvent) (*MyResponse, error) {
 		return &MyResponse{}, err
 	}
 
+	fmt.Println("stockStatus")
+
 	price, err := getPrice(page, event.PriceXpath)
 
 	if err != nil {
 		log.Fatal(err)
 		return &MyResponse{}, err
 	}
+
+	fmt.Println("price")
 
 	imageAsBase64, err := getImageAsBase64(page, event.ImageXpath)
 
