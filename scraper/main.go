@@ -4,36 +4,36 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/launcher"
-	"github.com/go-rod/rod/lib/proto"
 	"github.com/joho/godotenv"
 )
 
 type MyEvent struct {
-	URL                 string `json:"url"`
-	PreviousPrice       string `json:"previous_price"`
-	PreviousStockStatus string `json:"previous_stock_status"`
-	PriceXPATH          string `json:"price_xpath"`
-	InStockString       string `json:"in_stock_string"`
-	OutStockString      string `json:"out_stock_string"`
+	Url              string `json:"url"`
+	PriceXpath       string `json:"price_xpath"`
+	ImageXpath       string `json:"image_xpath"`
+	InStockString    string `json:"in_stock_string"`
+	OutOfStockString string `json:"out_stock_string"`
 }
 
 type MyResponse struct {
-	HTML    string `json:"html"`
 	Price   string `json:"price"`
 	InStock bool   `json:"in_stock"`
 	Image   string `json:"image"`
+	HTML    string `json:"html"`
 	Error   string `json:"error"`
 }
 
-func getStock(page *rod.Page, inStockString string, outStockString string) (*bool, error) {
-	inStockElement := page.MustElementR("button", "/"+inStockString+"/i")
-	outOfStockElement := page.MustElementR("button", "/"+outStockString+"/i")
+func getStock(page *rod.Page, inStockString string, outOfStockString string) (*bool, error) {
+	// We use /%s/i to make the search, case insensitive
+	inStockElement := page.MustElementR("button", fmt.Sprintf("/%s/i", inStockString))
+	outOfStockElement := page.MustElementR("button", fmt.Sprintf("/%s/i", outOfStockString))
 
 	stockStatus := new(bool)
 
@@ -54,44 +54,43 @@ func getStock(page *rod.Page, inStockString string, outStockString string) (*boo
 	return stockStatus, nil
 }
 
-func takeScreenShot(page *rod.Page) (string, error) {
-	bytes, err := page.Screenshot(false, &proto.PageCaptureScreenshot{})
+func getImageUrl(page *rod.Page, imageXpath string) (string, error) {
+	element := page.MustElementX(imageXpath)
 
-	if err != nil {
-		return "", err
+	if element == nil {
+		return "", errors.New("image: no such element")
 	}
 
-	return "data:image/png;base64," + base64.StdEncoding.EncodeToString(bytes), nil
+	image := element.MustResource()
+
+	if image == nil {
+		return "", errors.New("image: couldn't get image resource")
+	}
+
+	return "data:image/png;base64," + base64.StdEncoding.EncodeToString(image), nil
 }
 
 func scrape(ctx context.Context, event *MyEvent) (*MyResponse, error) {
 	CHROME_PATH := os.Getenv("CHROME_PATH")
 	u := launcher.New().Bin(CHROME_PATH).MustLaunch()
-	page := rod.New().ControlURL(u).MustConnect().MustPage(event.URL)
+	page := rod.New().ControlURL(u).MustConnect().MustPage(event.Url)
 	page.MustWaitStable()
 
-	// check price xpath and get string
-	// check stock string and get string
-
-	// some sort of check here so we don't do all this stuff every time if the page hasn't changed
-
-	stockStatus, err := getStock(page, event.InStockString, event.OutStockString)
+	stockStatus, err := getStock(page, event.InStockString, event.OutOfStockString)
 
 	if err != nil {
 		log.Fatal(err)
 		return &MyResponse{}, err
 	}
 
-	base64EncodedImage, err := takeScreenShot(page)
+	imageUrl, err := getImageUrl(page, event.ImageXpath)
 
 	if err != nil {
 		log.Fatal(err)
 		return &MyResponse{}, err
 	}
 
-	return &MyResponse{HTML: "Test", Price: "Test", Image: base64EncodedImage, InStock: *stockStatus}, nil
-
-	// if check didnt pass, send error
+	return &MyResponse{HTML: "Test", Price: "Test", Image: imageUrl, InStock: *stockStatus}, nil
 }
 
 func main() {
