@@ -4,21 +4,24 @@ USER root
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG TZ=Europe/London
+
 ARG CHROME_VERSION=1299153
+ARG GO_VERSION=1.22.3
 
 ARG UID=1000
 ARG GID=1000
+
+ARG DEBUG=false
 
 ENV TZ=$TZ
 ENV DEBIAN_FRONTEND=$DEBIAN_FRONTEND
 ENV LANG="C.UTF-8"
 ENV DEBUG_COLORS=true
 ENV CHROME_PATH=/task/chrome/chrome
-ENV DEBUG=false
+ENV DEBUG=${DEBUG}
 
 RUN apt-get update && apt-get install -y 
 RUN apt-get install ca-certificates gnupg -y
-RUN apt-get install golang-go -y
 
 # Chrome dependencies
 RUN apt-get install -y software-properties-common xvfb libu2f-udev gconf-service \
@@ -48,6 +51,11 @@ RUN chmod 755 /task
 USER worker
 
 WORKDIR /task
+
+RUN curl -Lo "go.tar.gz" "https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz" \
+    && tar -C /task/ -xzf go.tar.gz
+ENV PATH="${PATH}:/task/go/bin"
+RUN go version
 
 # Get chrome
 RUN mkdir -p "/task/chrome/" \
