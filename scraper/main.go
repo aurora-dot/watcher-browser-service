@@ -12,6 +12,7 @@ import (
 
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/go-rod/rod"
+	"github.com/go-rod/rod/lib/devices"
 	"github.com/go-rod/rod/lib/launcher"
 	"github.com/go-rod/stealth"
 	"github.com/joho/godotenv"
@@ -51,7 +52,7 @@ func getStock(page *rod.Page, inStockString string, outOfStockString string) (*b
 	if hasInStockElement && hasOutOfStockElement {
 		return stockStatus, errors.New("stock: both in and out of stock")
 	} else if !hasInStockElement && !hasOutOfStockElement {
-		return stockStatus, errors.New("stock: neither in or out of stock, this could be due to being redirected to verify you are not a robot page")
+		return stockStatus, errors.New("stock: neither in or out of stock, this could be due to being redirected to their 'verify you are not a robot' page")
 	}
 
 	if hasInStockElement && !hasOutOfStockElement {
@@ -110,9 +111,29 @@ func getImageAsBase64(page *rod.Page, imageXpath string) (string, error) {
 
 func setupBrowser() *rod.Page {
 	CHROME_PATH := os.Getenv("CHROME_PATH")
-	u := launcher.New().Bin(CHROME_PATH).MustLaunch()
-	browser := rod.New().ControlURL(u).MustConnect()
-	return stealth.MustPage(browser)
+	browserArgs := launcher.New().
+		UserDataDir("/tmp/profile").
+		Leakless(true).
+		Devtools(false).
+		Headless(true).
+		NoSandbox(true).
+		Set("--no-zygote").
+		Set("--disable-dev-shm-usage").
+		Set("--disable-setuid-sandbox").
+		Set("--disable-dev-shm-usage").
+		Set("--disable-gpu").
+		Set("--no-zygote").
+		Set("--single-process")
+
+	wsURL := browserArgs.Bin(CHROME_PATH).MustLaunch()
+	browser := rod.New().ControlURL(wsURL).MustConnect().DefaultDevice(devices.IPhoneX)
+	page := stealth.MustPage(browser)
+	page.MustSetExtraHeaders(
+		"Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+		"Accept-Language", "en-GB,en;q=0.5",
+		"Accept-Encoding", "gzip, deflate, br, zstd",
+	)
+	return page
 }
 
 func scrape(ctx context.Context, event *MyEvent) (*MyResponse, error) {
@@ -161,6 +182,8 @@ func scrape(ctx context.Context, event *MyEvent) (*MyResponse, error) {
 	}
 
 	log.Println("Finished getImageAsBase64")
+
+	page.MustClose()
 
 	return &MyResponse{HTML: page.MustHTML(), Price: price, Image: imageAsBase64, InStock: *stockStatus}, nil
 }

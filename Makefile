@@ -1,12 +1,15 @@
-.PHONY: clean install build buildDocker runDebug runDebugDocker getDebugTools deploy
+.PHONY: clean cleanServerless installDebugTools installServerless build buildDocker buildDebugDocker runDebug runDebugDocker deploy
 
 clean:
-	rm -rf ./node_modules
+	rm -rf ./bin
 
-install:
+cleanServerless:
+	rm ./node_modules
+
+installServerless:
 	npm i
 
-getDebugTools:
+installDebugTools:
 	wget https://github.com/aws/aws-lambda-runtime-interface-emulator/releases/latest/download/aws-lambda-rie
 	mkdir -p .aws-lambda-rie 
 	mv aws-lambda-rie .aws-lambda-rie/aws-lambda-rie
@@ -24,8 +27,12 @@ runDebug: debug
 buildDocker:
 	docker build -t watcher-local-build .
 
-runDebugDocker: buildDocker
-	docker run --platform linux/amd64 -v ./.aws-lambda-rie:/aws-lambda -p 9000:8080 --entrypoint /aws-lambda/aws-lambda-rie watcher-local-build /task/app
+buildDebugDocker:
+	docker build --build-arg="DEBUG=true" -t watcher-local-build .
+
+runDebugDocker: buildDebugDocker
+	touch page-docker.html
+	docker run --platform linux/amd64 -v ./.aws-lambda-rie:/aws-lambda -v ./page-docker.html:/task/page.html -p 9000:8080 --entrypoint /aws-lambda/aws-lambda-rie watcher-local-build /task/app
 
 deploy: install
 	npx sls deploy --verbose

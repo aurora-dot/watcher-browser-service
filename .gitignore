@@ -28,3 +28,6 @@ bin
 
 .aws-lambda-rie
 .env
+
+page.html
+page-docker.html
