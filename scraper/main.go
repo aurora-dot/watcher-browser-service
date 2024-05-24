@@ -53,7 +53,7 @@ func getStock(page *rod.Page, inStockString string, outOfStockString string) (*b
 	if hasInStockElement && hasOutOfStockElement {
 		return stockStatus, errors.New("stock: both in and out of stock")
 	} else if !hasInStockElement && !hasOutOfStockElement {
-		return stockStatus, errors.New("stock: neither in or out of stock")
+		return stockStatus, errors.New("stock: neither in or out of stock, this could be due to being redirected to verify you are not a robot page")
 	}
 
 	if hasInStockElement && !hasOutOfStockElement {
