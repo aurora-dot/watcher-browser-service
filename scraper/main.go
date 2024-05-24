@@ -137,7 +137,7 @@ func scrape(ctx context.Context, event *MyEvent) (*MyResponse, error) {
 
 	if err != nil {
 		log.Println(err)
-		return &MyResponse{HTML: page.MustHTML()}, err
+		return &MyResponse{}, err
 	}
 
 	log.Println("Finished getStock")
@@ -146,7 +146,7 @@ func scrape(ctx context.Context, event *MyEvent) (*MyResponse, error) {
 
 	if err != nil {
 		log.Println(err)
-		return &MyResponse{HTML: page.MustHTML()}, err
+		return &MyResponse{}, err
 	}
 
 	log.Println("Finished price")
@@ -155,7 +155,7 @@ func scrape(ctx context.Context, event *MyEvent) (*MyResponse, error) {
 
 	if err != nil {
 		log.Println(err)
-		return &MyResponse{HTML: page.MustHTML()}, err
+		return &MyResponse{}, err
 	}
 
 	log.Println("Finished getImageAsBase64")
