@@ -30,7 +30,6 @@ type MyResponse struct {
 	InStock bool   `json:"in_stock"`
 	Image   string `json:"image"`
 	HTML    string `json:"html"`
-	Error   string `json:"error"`
 }
 
 func getStock(page *rod.Page, inStockString string, outOfStockString string) (*bool, error) {
