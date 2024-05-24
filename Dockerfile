@@ -4,20 +4,24 @@ USER root
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG TZ=Europe/London
+
 ARG CHROME_VERSION=1299153
+ARG GO_VERSION=1.22.3
 
 ARG UID=1000
 ARG GID=1000
+
+ARG DEBUG=false
 
 ENV TZ=$TZ
 ENV DEBIAN_FRONTEND=$DEBIAN_FRONTEND
 ENV LANG="C.UTF-8"
 ENV DEBUG_COLORS=true
 ENV CHROME_PATH=/task/chrome/chrome
+ENV DEBUG=${DEBUG}
 
 RUN apt-get update && apt-get install -y 
 RUN apt-get install ca-certificates gnupg -y
-RUN apt-get install golang-go -y
 
 # Chrome dependencies
 RUN apt-get install -y software-properties-common xvfb libu2f-udev gconf-service \
@@ -48,16 +52,23 @@ USER worker
 
 WORKDIR /task
 
-COPY scraper/main.go go.mod go.sum ./
+RUN curl -Lo "go.tar.gz" "https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz" \
+    && tar -C /task/ -xzf go.tar.gz
+ENV PATH="${PATH}:/task/go/bin"
+RUN go version
 
-RUN GOARCH=amd64 GOOS=linux go build -ldflags="-s -w" -o app main.go && \
-    rm main.go go.mod go.sum
-
+# Get chrome
 RUN mkdir -p "/task/chrome/" \
     && curl -Lo "/task/chrome/chrome-linux.zip" "https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Linux_x64%2F${CHROME_VERSION}%2Fchrome-linux.zip?alt=media" \
     && unzip -q "/task/chrome/chrome-linux.zip" -d "/task/chrome/" && mv /task/chrome/chrome-linux/* /task/chrome/ \
     && rm -rf /task/chrome/chrome-linux "/task/chrome/chrome-linux.zip"
 
 RUN echo CHROME_PATH=${CHROME_PATH} > .env
+
+# Copy source and build scraper
+COPY scraper/main.go go.mod go.sum ./
+
+RUN GOARCH=amd64 GOOS=linux go build -ldflags="-s -w" -o app main.go && \
+    rm main.go go.mod go.sum
 
 ENTRYPOINT [ "task/app" ]

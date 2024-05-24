@@ -15,5 +15,6 @@ require (
 
 require (
 	github.com/go-rod/rod v0.116.0
+	github.com/go-rod/stealth v0.4.9
 	github.com/stretchr/testify v1.8.4 // indirect
 )
