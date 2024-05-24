@@ -33,28 +33,30 @@ type MyResponse struct {
 }
 
 func getStock(page *rod.Page, inStockString string, outOfStockString string) (*bool, error) {
-	// check using HasR before getting to stop the infinate loop hopefully
-
-	fmt.Println("Started getStock")
-
-	// We use /%s/i to make the search, case insensitive
-	inStockElement, inStockErr := page.ElementR("button", fmt.Sprintf("/%s/i", inStockString))
-	fmt.Println("Got inStockElement")
-
-	outOfStockElement, outOfStockErr := page.ElementR("button", fmt.Sprintf("/%s/i", outOfStockString))
-	fmt.Println("Got outOfStockElement")
+	hasInStockElement, _, inStockErr := page.HasR("button", fmt.Sprintf("/%s/i", inStockString))
+	hasOutOfStockElement, _, outOfStockErr := page.HasR("button", fmt.Sprintf("/%s/i", outOfStockString))
 
 	stockStatus := new(bool)
 
-	if inStockErr != nil && outOfStockErr != nil {
-		return stockStatus, errors.New("stock: both in and out of stock")
-	} else if inStockErr == nil && outOfStockErr == nil {
-		return stockStatus, errors.New("stock: neither in and out of stock")
+	if inStockErr != nil {
+		log.Fatal(inStockErr)
+		return stockStatus, errors.New("stock: internal in stock error")
 	}
 
-	if inStockElement != nil && inStockErr == nil {
+	if outOfStockErr != nil {
+		log.Fatal(outOfStockErr)
+		return stockStatus, errors.New("stock: internal out of stock error")
+	}
+
+	if hasInStockElement && hasOutOfStockElement {
+		return stockStatus, errors.New("stock: both in and out of stock")
+	} else if !hasInStockElement && !hasOutOfStockElement {
+		return stockStatus, errors.New("stock: neither in or out of stock")
+	}
+
+	if hasInStockElement && !hasOutOfStockElement {
 		*stockStatus = true
-	} else if outOfStockElement != nil && outOfStockErr == nil {
+	} else if !hasInStockElement && hasOutOfStockElement {
 		*stockStatus = false
 	} else {
 		return stockStatus, errors.New("stock: uncaught error")
@@ -64,13 +66,15 @@ func getStock(page *rod.Page, inStockString string, outOfStockString string) (*b
 }
 
 func getPrice(page *rod.Page, priceXpath string) (string, error) {
-	// check using HasX before getting to stop the infinate loop hopefully
-
-	element, err := page.ElementX(priceXpath)
+	hasElement, element, err := page.HasX(priceXpath)
 
 	if err != nil {
 		log.Fatal(err)
-		return "", errors.New("price: no such element")
+		return "", errors.New("price: internal price error")
+	}
+
+	if !hasElement {
+		return "", errors.New("price: cannot fetch element from xpath")
 	}
 
 	text := element.MustText()
@@ -84,13 +88,15 @@ func getPrice(page *rod.Page, priceXpath string) (string, error) {
 }
 
 func getImageAsBase64(page *rod.Page, imageXpath string) (string, error) {
-	// check using HasX before getting to stop the infinate loop hopefully
-
-	element, err := page.ElementX(imageXpath)
+	hasElement, element, err := page.HasX(imageXpath)
 
 	if err != nil {
 		log.Fatal(err)
-		return "", errors.New("image: no such element")
+		return "", errors.New("image: internal image error")
+	}
+
+	if !hasElement {
+		return "", errors.New("image: cannot fetch element from xpath")
 	}
 
 	image := element.MustResource()
@@ -103,7 +109,6 @@ func getImageAsBase64(page *rod.Page, imageXpath string) (string, error) {
 }
 
 func scrape(ctx context.Context, event *MyEvent) (*MyResponse, error) {
-
 	if event.ImageXpath == "" || event.PriceXpath == "" || event.Url == "" || event.InStockString == "" || event.OutOfStockString == "" {
 		return &MyResponse{}, errors.New("request: doesn't have all json attributes")
 	}
@@ -118,11 +123,15 @@ func scrape(ctx context.Context, event *MyEvent) (*MyResponse, error) {
 
 	fmt.Println("Got page")
 
+	if err := os.WriteFile("page.html", []byte(page.MustHTML()), 0666); err != nil {
+		log.Fatal(err)
+	}
+
 	stockStatus, err := getStock(page, event.InStockString, event.OutOfStockString)
 
 	if err != nil {
 		log.Fatal(err)
-		return &MyResponse{}, err
+		return &MyResponse{HTML: page.MustHTML()}, err
 	}
 
 	fmt.Println("stockStatus")
@@ -131,7 +140,7 @@ func scrape(ctx context.Context, event *MyEvent) (*MyResponse, error) {
 
 	if err != nil {
 		log.Fatal(err)
-		return &MyResponse{}, err
+		return &MyResponse{HTML: page.MustHTML()}, err
 	}
 
 	fmt.Println("price")
@@ -140,10 +149,8 @@ func scrape(ctx context.Context, event *MyEvent) (*MyResponse, error) {
 
 	if err != nil {
 		log.Fatal(err)
-		return &MyResponse{}, err
+		return &MyResponse{HTML: page.MustHTML()}, err
 	}
-
-	fmt.Println("Image: " + imageAsBase64)
 
 	return &MyResponse{HTML: page.MustHTML(), Price: price, Image: imageAsBase64, InStock: *stockStatus}, nil
 }
