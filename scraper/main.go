@@ -108,6 +108,13 @@ func getImageAsBase64(page *rod.Page, imageXpath string) (string, error) {
 	return fmt.Sprintf("data:image/%s;base64,%s", http.DetectContentType(image), base64.StdEncoding.EncodeToString(image)), nil
 }
 
+func setupBrowser() *rod.Page {
+	CHROME_PATH := os.Getenv("CHROME_PATH")
+	u := launcher.New().Bin(CHROME_PATH).MustLaunch()
+	browser := rod.New().ControlURL(u).MustConnect()
+	return stealth.MustPage(browser)
+}
+
 func scrape(ctx context.Context, event *MyEvent) (*MyResponse, error) {
 	if event.ImageXpath == "" || event.PriceXpath == "" || event.Url == "" || event.InStockString == "" || event.OutOfStockString == "" {
 		return &MyResponse{}, errors.New("request: doesn't have all json attributes")
@@ -115,10 +122,7 @@ func scrape(ctx context.Context, event *MyEvent) (*MyResponse, error) {
 
 	log.Println("Started scrape")
 
-	CHROME_PATH := os.Getenv("CHROME_PATH")
-	u := launcher.New().Bin(CHROME_PATH).MustLaunch()
-	browser := rod.New().ControlURL(u).MustConnect()
-	page := stealth.MustPage(browser)
+	page := setupBrowser()
 	page.MustNavigate(event.Url).MustWaitStable()
 
 	log.Println("Got page")
