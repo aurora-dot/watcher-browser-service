@@ -183,8 +183,6 @@ func scrape(ctx context.Context, event *MyEvent) (*MyResponse, error) {
 
 	log.Println("Finished getImageAsBase64")
 
-	page.MustClose()
-
 	return &MyResponse{HTML: page.MustHTML(), Price: price, Image: imageAsBase64, InStock: *stockStatus}, nil
 }
 
