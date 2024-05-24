@@ -123,8 +123,12 @@ func scrape(ctx context.Context, event *MyEvent) (*MyResponse, error) {
 
 	fmt.Println("Got page")
 
-	if err := os.WriteFile("page.html", []byte(page.MustHTML()), 0666); err != nil {
-		log.Fatal(err)
+	DEBUG := strings.ToLower(os.Getenv("DEBUG"))
+	if DEBUG == "true" {
+		if err := os.WriteFile("page.html", []byte(page.MustHTML()), 0666); err != nil {
+			log.Fatal(err)
+		}
+
 	}
 
 	stockStatus, err := getStock(page, event.InStockString, event.OutOfStockString)

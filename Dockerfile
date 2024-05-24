@@ -14,6 +14,7 @@ ENV DEBIAN_FRONTEND=$DEBIAN_FRONTEND
 ENV LANG="C.UTF-8"
 ENV DEBUG_COLORS=true
 ENV CHROME_PATH=/task/chrome/chrome
+ENV DEBUG=false
 
 RUN apt-get update && apt-get install -y 
 RUN apt-get install ca-certificates gnupg -y
