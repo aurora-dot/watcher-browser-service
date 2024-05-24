@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/go-rod/rod"
@@ -37,14 +38,15 @@ func getStock(page *rod.Page, inStockString string, outOfStockString string) (*b
 	hasOutOfStockElement, _, outOfStockErr := page.HasR("button", fmt.Sprintf("/%s/i", outOfStockString))
 
 	stockStatus := new(bool)
+	*stockStatus = false
 
 	if inStockErr != nil {
-		log.Fatal(inStockErr)
+		log.Println(inStockErr)
 		return stockStatus, errors.New("stock: internal in stock error")
 	}
 
 	if outOfStockErr != nil {
-		log.Fatal(outOfStockErr)
+		log.Println(outOfStockErr)
 		return stockStatus, errors.New("stock: internal out of stock error")
 	}
 
@@ -69,7 +71,7 @@ func getPrice(page *rod.Page, priceXpath string) (string, error) {
 	hasElement, element, err := page.HasX(priceXpath)
 
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 		return "", errors.New("price: internal price error")
 	}
 
@@ -91,7 +93,7 @@ func getImageAsBase64(page *rod.Page, imageXpath string) (string, error) {
 	hasElement, element, err := page.HasX(imageXpath)
 
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 		return "", errors.New("image: internal image error")
 	}
 
@@ -113,7 +115,7 @@ func scrape(ctx context.Context, event *MyEvent) (*MyResponse, error) {
 		return &MyResponse{}, errors.New("request: doesn't have all json attributes")
 	}
 
-	fmt.Println("Started")
+	log.Println("Started scrape")
 
 	CHROME_PATH := os.Getenv("CHROME_PATH")
 	u := launcher.New().Bin(CHROME_PATH).MustLaunch()
@@ -121,7 +123,7 @@ func scrape(ctx context.Context, event *MyEvent) (*MyResponse, error) {
 	page := stealth.MustPage(browser)
 	page.MustNavigate(event.Url).MustWaitStable()
 
-	fmt.Println("Got page")
+	log.Println("Got page")
 
 	DEBUG := strings.ToLower(os.Getenv("DEBUG"))
 	if DEBUG == "true" {
@@ -134,27 +136,29 @@ func scrape(ctx context.Context, event *MyEvent) (*MyResponse, error) {
 	stockStatus, err := getStock(page, event.InStockString, event.OutOfStockString)
 
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 		return &MyResponse{HTML: page.MustHTML()}, err
 	}
 
-	fmt.Println("stockStatus")
+	log.Println("Finished getStock")
 
 	price, err := getPrice(page, event.PriceXpath)
 
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 		return &MyResponse{HTML: page.MustHTML()}, err
 	}
 
-	fmt.Println("price")
+	log.Println("Finished price")
 
 	imageAsBase64, err := getImageAsBase64(page, event.ImageXpath)
 
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 		return &MyResponse{HTML: page.MustHTML()}, err
 	}
+
+	log.Println("Finished getImageAsBase64")
 
 	return &MyResponse{HTML: page.MustHTML(), Price: price, Image: imageAsBase64, InStock: *stockStatus}, nil
 }
@@ -163,7 +167,6 @@ func main() {
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
-		return
 	}
 
 	lambda.Start(scrape)
