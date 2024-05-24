@@ -69,6 +69,7 @@ RUN echo CHROME_PATH=${CHROME_PATH} > .env
 COPY scraper/main.go go.mod go.sum ./
 
 RUN GOARCH=amd64 GOOS=linux go build -ldflags="-s -w" -o app main.go && \
-    rm main.go go.mod go.sum
+    rm main.go go.mod go.sum && \
+    rm -rf /task/go
 
 ENTRYPOINT [ "task/app" ]

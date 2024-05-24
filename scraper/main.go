@@ -37,7 +37,6 @@ func getStock(page *rod.Page, inStockString string, outOfStockString string) (*b
 	hasOutOfStockElement, _, outOfStockErr := page.HasR("button", fmt.Sprintf("/%s/i", outOfStockString))
 
 	stockStatus := new(bool)
-	*stockStatus = false
 
 	if inStockErr != nil {
 		log.Println(inStockErr)
