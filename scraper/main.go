@@ -123,7 +123,8 @@ func setupBrowser() (*rod.Page, *rod.HijackRouter) {
 		Set("--disable-dev-shm-usage").
 		Set("--disable-gpu").
 		Set("--no-zygote").
-		Set("--single-process")
+		Set("--single-process").
+		Set("--start-maximized")
 
 	wsURL := browserArgs.Bin(CHROME_PATH).MustLaunch()
 	browser := rod.New().ControlURL(wsURL).MustConnect()
