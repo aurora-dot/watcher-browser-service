@@ -32,7 +32,7 @@ buildDebugDocker:
 
 runDebugDocker: buildDebugDocker
 	touch page-docker.html
-	docker run --platform linux/amd64 -v ./.aws-lambda-rie:/aws-lambda -v ./page-docker.html:/task/page.html -p 9000:8080 --entrypoint /aws-lambda/aws-lambda-rie watcher-local-build /task/app
+	docker run --platform linux/amd64 -v ./.aws-lambda-rie:/aws-lambda -v ./page-docker.html:/task/page.html -p 0.0.0.0:9000:8080 --entrypoint /aws-lambda/aws-lambda-rie watcher-local-build /task/app
 
 deploy: install
 	npx sls deploy --verbose
