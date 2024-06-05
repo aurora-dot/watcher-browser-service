@@ -13,7 +13,6 @@ import (
 
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/go-rod/rod"
-	"github.com/go-rod/rod/lib/devices"
 	"github.com/go-rod/rod/lib/launcher"
 	"github.com/go-rod/stealth"
 	"github.com/joho/godotenv"
@@ -127,23 +126,31 @@ func setupBrowser() (*rod.Page, *rod.HijackRouter) {
 		Set("--single-process")
 
 	wsURL := browserArgs.Bin(CHROME_PATH).MustLaunch()
-	browser := rod.New().ControlURL(wsURL).MustConnect().DefaultDevice(devices.IPhoneX)
+	browser := rod.New().ControlURL(wsURL).MustConnect()
 
 	page := stealth.MustPage(browser)
 	page.MustSetExtraHeaders(
-		"Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-		"Accept-Language", "en-GB,en;q=0.5",
-		"Accept-Encoding", "gzip, deflate, br, zstd",
+		"DNT", "1",
+		"SEC-FETCH-DEST", "document",
+		"SEC-FETCH-MODE", "navigate",
+		"SEC-FETCH-SITE", "same-origin",
+		"SEC-FETCH-USER", "?1",
+		"SEC-GPC", "1",
+		"PRIORITY", "u=1",
+		// "Accept-Encoding", "gzip, deflate, br, zstd",
 	)
 
 	router := page.HijackRequests()
 
 	router.MustAdd("https://www.whatismybrowser.com/detect/what-http-headers-is-my-browser-sending?sort=dont-sort", func(ctx *rod.Hijack) {
 		r := ctx.Request
-		r.Req().Header.Del("DEVICE-MEMORY")
+		r.Req().Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8")
+		r.Req().Header.Set("Accept-Language", "en-GB,en;q=0.5")
 		r.Req().Header.Del("DPR")
+		r.Req().Header.Del("DEVICE-MEMORY")
 		r.Req().Header.Del("SEC-CH-PREFERS-COLOR-SCHEME")
 		r.Req().Header.Del("SEC-CH-PREFERS-REDUCED-MOTION")
+
 		ctx.MustLoadResponse()
 	})
 
@@ -165,7 +172,12 @@ func scrape(ctx context.Context, event *MyEvent) (*MyResponse, error) {
 
 	log.Println("Set up web browser")
 
-	page.MustNavigate(event.Url).WaitStable(time.Duration(15))
+	err := page.MustNavigate(event.Url).WaitStable(time.Duration(15))
+
+	if err != nil {
+		log.Println(err)
+		return &MyResponse{}, err
+	}
 
 	log.Println("Got page")
 
