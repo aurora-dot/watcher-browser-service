@@ -22,7 +22,7 @@ debug:
 	env GOARCH=amd64 GOOS=linux go build -v -gcflags='all=-N -l' -ldflags="-s -w" -o bin/scraperDebug scraper/main.go
 
 runDebug: debug
-	./.aws-lambda-rie/aws-lambda-rie ./bin/scraperDebug
+	DEBUG=true ./.aws-lambda-rie/aws-lambda-rie ./bin/scraperDebug
 
 buildDocker:
 	docker build -t watcher-local-build .
