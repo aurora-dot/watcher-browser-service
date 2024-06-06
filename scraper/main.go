@@ -109,7 +109,7 @@ func getImageAsBase64(page *rod.Page, imageXpath string) (string, error) {
 	return fmt.Sprintf("data:image/%s;base64,%s", http.DetectContentType(image), base64.StdEncoding.EncodeToString(image)), nil
 }
 
-func setupBrowser() (*rod.Page, *rod.HijackRouter) {
+func setupBrowser() *rod.Page {
 	CHROME_PATH := os.Getenv("CHROME_PATH")
 	browserArgs := launcher.New().
 		UserDataDir("/tmp/profile").
@@ -130,6 +130,20 @@ func setupBrowser() (*rod.Page, *rod.HijackRouter) {
 	browser := rod.New().ControlURL(wsURL).MustConnect()
 
 	page := stealth.MustPage(browser)
+
+	setupPageHeaders(page)
+
+	return page
+}
+
+func setupPageHeaders(page *rod.Page) {
+	// Currently this is seemingly the best we can do with the headers
+	// The ordering of them is most likely triggering Incapsula
+	// However the http library header object doesn't allow ordering (as of yet)
+	// Issues:
+	//   https://github.com/golang/go/issues/24375
+	//   https://github.com/golang/go/issues/5465
+
 	page.MustSetExtraHeaders(
 		"DNT", "1",
 		"SEC-FETCH-DEST", "document",
@@ -139,11 +153,14 @@ func setupBrowser() (*rod.Page, *rod.HijackRouter) {
 		"SEC-GPC", "1",
 		"PRIORITY", "u=1",
 		// "Accept-Encoding", "gzip, deflate, br, zstd",
+		// The above is commented out, as when hijacking seemingly only gzip works
 	)
 
 	router := page.HijackRequests()
 
-	router.MustAdd("https://www.whatismybrowser.com/detect/what-http-headers-is-my-browser-sending?sort=dont-sort", func(ctx *rod.Hijack) {
+	// Currently the only way to remove headers is by hijacking the request
+	// Setting the Accept* headers gets overridden when set in `MustSetExtraHeaders` so it's done here instead
+	router.MustAdd("*", func(ctx *rod.Hijack) {
 		r := ctx.Request
 		r.Req().Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8")
 		r.Req().Header.Set("Accept-Language", "en-GB,en;q=0.5")
@@ -156,8 +173,6 @@ func setupBrowser() (*rod.Page, *rod.HijackRouter) {
 	})
 
 	go router.Run()
-
-	return page, router
 }
 
 func scrape(ctx context.Context, event *MyEvent) (*MyResponse, error) {
@@ -167,9 +182,7 @@ func scrape(ctx context.Context, event *MyEvent) (*MyResponse, error) {
 
 	log.Println("Started scrape")
 
-	page, router := setupBrowser()
-
-	log.Println(router)
+	page := setupBrowser()
 
 	log.Println("Set up web browser")
 
@@ -182,8 +195,7 @@ func scrape(ctx context.Context, event *MyEvent) (*MyResponse, error) {
 
 	log.Println("Got page")
 
-	DEBUG := strings.ToLower(os.Getenv("DEBUG"))
-	if DEBUG == "true" {
+	if strings.ToLower(os.Getenv("DEBUG")) == "true" {
 		if err := os.WriteFile("page.html", []byte(page.MustHTML()), 0666); err != nil {
 			log.Fatal(err)
 		}
