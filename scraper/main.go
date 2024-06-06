@@ -186,7 +186,7 @@ func scrape(ctx context.Context, event *MyEvent) (*MyResponse, error) {
 
 	log.Println("Set up web browser")
 
-	err := page.MustNavigate(event.Url).WaitStable(time.Duration(15))
+	err := page.MustNavigate(event.Url).WaitStable(time.Duration(5 * time.Second))
 
 	if err != nil {
 		log.Println(err)
