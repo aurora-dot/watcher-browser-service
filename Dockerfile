@@ -64,11 +64,14 @@ RUN mkdir -p "/task/chrome/" \
     && rm -rf /task/chrome/chrome-linux "/task/chrome/chrome-linux.zip"
 
 RUN echo CHROME_PATH=${CHROME_PATH} > .env
+RUN echo DEBUG=${DEBUG} >> .env
+RUN if [ "$DEBUG" = "true" ] ; then touch /task/page.html; fi
 
 # Copy source and build scraper
 COPY scraper/main.go go.mod go.sum ./
 
 RUN GOARCH=amd64 GOOS=linux go build -ldflags="-s -w" -o app main.go && \
-    rm main.go go.mod go.sum
+    rm main.go go.mod go.sum && \
+    rm -rf /task/go
 
 ENTRYPOINT [ "task/app" ]

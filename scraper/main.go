@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/go-rod/rod"
@@ -30,7 +31,6 @@ type MyResponse struct {
 	InStock bool   `json:"in_stock"`
 	Image   string `json:"image"`
 	HTML    string `json:"html"`
-	Error   string `json:"error"`
 }
 
 func getStock(page *rod.Page, inStockString string, outOfStockString string) (*bool, error) {
@@ -38,7 +38,6 @@ func getStock(page *rod.Page, inStockString string, outOfStockString string) (*b
 	hasOutOfStockElement, _, outOfStockErr := page.HasR("button", fmt.Sprintf("/%s/i", outOfStockString))
 
 	stockStatus := new(bool)
-	*stockStatus = false
 
 	if inStockErr != nil {
 		log.Println(inStockErr)
@@ -53,7 +52,7 @@ func getStock(page *rod.Page, inStockString string, outOfStockString string) (*b
 	if hasInStockElement && hasOutOfStockElement {
 		return stockStatus, errors.New("stock: both in and out of stock")
 	} else if !hasInStockElement && !hasOutOfStockElement {
-		return stockStatus, errors.New("stock: neither in or out of stock, this could be due to being redirected to verify you are not a robot page")
+		return stockStatus, errors.New("stock: neither in or out of stock, this could be due to being redirected to their 'verify you are not a robot' page")
 	}
 
 	if hasInStockElement && !hasOutOfStockElement {
@@ -110,6 +109,72 @@ func getImageAsBase64(page *rod.Page, imageXpath string) (string, error) {
 	return fmt.Sprintf("data:image/%s;base64,%s", http.DetectContentType(image), base64.StdEncoding.EncodeToString(image)), nil
 }
 
+func setupBrowser() *rod.Page {
+	CHROME_PATH := os.Getenv("CHROME_PATH")
+	browserArgs := launcher.New().
+		UserDataDir("/tmp/profile").
+		Leakless(true).
+		Devtools(false).
+		Headless(true).
+		NoSandbox(true).
+		Set("--no-zygote").
+		Set("--disable-dev-shm-usage").
+		Set("--disable-setuid-sandbox").
+		Set("--disable-dev-shm-usage").
+		Set("--disable-gpu").
+		Set("--no-zygote").
+		Set("--single-process").
+		Set("--start-maximized")
+
+	wsURL := browserArgs.Bin(CHROME_PATH).MustLaunch()
+	browser := rod.New().ControlURL(wsURL).MustConnect()
+
+	page := stealth.MustPage(browser)
+
+	setupPageHeaders(page)
+
+	return page
+}
+
+func setupPageHeaders(page *rod.Page) {
+	// Currently this is seemingly the best we can do with the headers
+	// The ordering of them is most likely triggering Incapsula
+	// However the http library header object doesn't allow ordering (as of yet)
+	// Issues:
+	//   https://github.com/golang/go/issues/24375
+	//   https://github.com/golang/go/issues/5465
+
+	page.MustSetExtraHeaders(
+		"DNT", "1",
+		"SEC-FETCH-DEST", "document",
+		"SEC-FETCH-MODE", "navigate",
+		"SEC-FETCH-SITE", "same-origin",
+		"SEC-FETCH-USER", "?1",
+		"SEC-GPC", "1",
+		"PRIORITY", "u=1",
+		// "Accept-Encoding", "gzip, deflate, br, zstd",
+		// The above is commented out, as when hijacking seemingly only gzip works
+	)
+
+	router := page.HijackRequests()
+
+	// Currently the only way to remove headers is by hijacking the request
+	// Setting the Accept* headers gets overridden when set in `MustSetExtraHeaders` so it's done here instead
+	router.MustAdd("*", func(ctx *rod.Hijack) {
+		r := ctx.Request
+		r.Req().Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8")
+		r.Req().Header.Set("Accept-Language", "en-GB,en;q=0.5")
+		r.Req().Header.Del("DPR")
+		r.Req().Header.Del("DEVICE-MEMORY")
+		r.Req().Header.Del("SEC-CH-PREFERS-COLOR-SCHEME")
+		r.Req().Header.Del("SEC-CH-PREFERS-REDUCED-MOTION")
+
+		ctx.MustLoadResponse()
+	})
+
+	go router.Run()
+}
+
 func scrape(ctx context.Context, event *MyEvent) (*MyResponse, error) {
 	if event.ImageXpath == "" || event.PriceXpath == "" || event.Url == "" || event.InStockString == "" || event.OutOfStockString == "" {
 		return &MyResponse{}, errors.New("request: doesn't have all json attributes")
@@ -117,16 +182,20 @@ func scrape(ctx context.Context, event *MyEvent) (*MyResponse, error) {
 
 	log.Println("Started scrape")
 
-	CHROME_PATH := os.Getenv("CHROME_PATH")
-	u := launcher.New().Bin(CHROME_PATH).MustLaunch()
-	browser := rod.New().ControlURL(u).MustConnect()
-	page := stealth.MustPage(browser)
-	page.MustNavigate(event.Url).MustWaitStable()
+	page := setupBrowser()
+
+	log.Println("Set up web browser")
+
+	err := page.MustNavigate(event.Url).WaitStable(time.Duration(5 * time.Second))
+
+	if err != nil {
+		log.Println(err)
+		return &MyResponse{}, err
+	}
 
 	log.Println("Got page")
 
-	DEBUG := strings.ToLower(os.Getenv("DEBUG"))
-	if DEBUG == "true" {
+	if strings.ToLower(os.Getenv("DEBUG")) == "true" {
 		if err := os.WriteFile("page.html", []byte(page.MustHTML()), 0666); err != nil {
 			log.Fatal(err)
 		}
